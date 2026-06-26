@@ -1,0 +1,10 @@
+/* Matches page — inherits from App.css */
+.matching-section { padding: 0; }
+.matches-table-container { overflow-x: auto; }
+.matches-table { min-width: 700px; width: 100%; table-layout: fixed; }
+.matches-table th, .matches-table td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}

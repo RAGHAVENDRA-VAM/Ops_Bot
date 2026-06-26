@@ -1,0 +1,3 @@
+/* History page — inherits from App.css */
+.history-section { padding: 0; }
+.history-table-container { overflow-x: auto; }

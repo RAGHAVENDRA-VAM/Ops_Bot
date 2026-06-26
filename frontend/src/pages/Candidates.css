@@ -1,0 +1,3 @@
+/* Candidates page — inherits from App.css */
+.candidates-section { padding: 0; }
+.candidates-table-container { overflow-x: auto; }

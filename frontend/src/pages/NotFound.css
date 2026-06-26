@@ -1,0 +1,12 @@
+/* NotFound page styles */
+.notfound-section {
+  padding: 2rem;
+  text-align: center;
+}
+.notfound-section h2 {
+  color: #dc3545;
+  font-size: 2rem;
+}
+.notfound-section p {
+  color: #666;
+}

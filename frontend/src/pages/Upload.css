@@ -1,0 +1,39 @@
+/* Upload page — inherits from App.css */
+.upload-section { padding: 0; }
+
+.analyze-section {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+}
+.analyze-section h3 { font-size: 0.95rem; font-weight: 700; color: #0f1f3d; margin-bottom: 14px; }
+.analyze-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.analyze-error { color: #dc2626; font-size: 0.82rem; margin-top: 8px; }
+.analyze-results-table { margin-top: 16px; overflow-x: auto; }
+.analyze-results-table h4 { font-size: 0.875rem; font-weight: 700; color: #0f1f3d; margin-bottom: 10px; }
+
+.analyze-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.analyze-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 2px solid #e2e8f0;
+}
+.analyze-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+.analyze-table tbody tr:hover td { background: #f8fafc; }

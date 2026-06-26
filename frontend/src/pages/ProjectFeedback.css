@@ -1,0 +1,195 @@
+/* Project Feedback page */
+.project-feedback-section {
+  padding: 0;
+  max-width: 100%;
+}
+
+.project-feedback-file-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+}
+
+.project-feedback-title-top {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f1f3d;
+}
+
+.custom-file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1.5px dashed #93c5fd;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background 0.2s, border-color 0.2s;
+}
+.custom-file-label:hover { background: #dbeafe; border-color: #3b82f6; }
+
+.project-feedback-header { margin-bottom: 16px; }
+
+.feedback-search-input {
+  padding: 9px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #334155;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+  max-width: 360px;
+  margin-bottom: 20px;
+  display: block;
+}
+.feedback-search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+}
+
+.feedback-grid-container { margin-top: 0; }
+
+.feedback-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.feedback-card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  padding: 18px 16px;
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.feedback-card:hover {
+  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+  border-color: #93c5fd;
+}
+
+.feedback-card-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 8px;
+}
+.feedback-card-label:first-child { margin-top: 0; }
+
+.feedback-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f1f3d;
+}
+
+.feedback-card-skill {
+  font-size: 0.82rem;
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+/* Modal */
+.feedback-modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(15,31,61,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.feedback-modal {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  padding: 28px 28px 20px;
+  width: 520px;
+  max-width: 95vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.feedback-modal h3 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #0f1f3d;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.feedback-modal > div {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.feedback-modal > div > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.feedback-modal > div > div:last-child { border-bottom: none; }
+
+.feedback-modal > div > div strong {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.modal-close-btn {
+  margin-top: 18px;
+  background: #1d4ed8;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  align-self: flex-end;
+}
+.modal-close-btn:hover { background: #1e40af; }
+
+.no-data {
+  text-align: center;
+  padding: 40px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 1100px) { .feedback-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 768px) { .feedback-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .feedback-grid { grid-template-columns: 1fr; } }
