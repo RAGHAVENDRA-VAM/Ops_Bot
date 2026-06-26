@@ -13,7 +13,6 @@ import './Candidates.css';
 const Candidates = ({ statuses, handleCandidateTableChange, handleCandidateSave }) => {
   const [candidatesTableData, setCandidatesTableData] = useState([]);
   const [otherCandidates, setOtherCandidates] = useState([]);
-  const [showOthers, setShowOthers] = useState(false);
   const [positions, setPositions] = useState([]); // Will hold rrf_id list
   const [accounts, setAccounts] = useState([]); // eslint-disable-line no-unused-vars
   const [rrfMap, setRrfMap] = useState({}); // rrf_id -> rrf object
@@ -104,7 +103,7 @@ const Candidates = ({ statuses, handleCandidateTableChange, handleCandidateSave 
       // Refresh candidates and dashboard to reflect server state (On-Hold is local and shouldn't affect bench counts)
       (async () => {
         try {
-          const [cRes, dRes] = await Promise.all([
+          const [cRes] = await Promise.all([
             axios.get(`${API_BASE}/candidates`),
             axios.get(`${API_BASE}/dashboard`)
           ]);
@@ -132,7 +131,7 @@ const Candidates = ({ statuses, handleCandidateTableChange, handleCandidateSave 
         .then(async () => {
           toast.success('Position updated successfully!');
           try {
-            const [cRes, dRes] = await Promise.all([
+            const [cRes] = await Promise.all([
               axios.get(`${API_BASE}/candidates`),
               axios.get(`${API_BASE}/dashboard`)
             ]);

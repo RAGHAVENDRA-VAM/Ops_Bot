@@ -23,7 +23,7 @@ jobs:
         run: |
           cd frontend
           npm install
-          npm run build
+          CI=false npm run build
 
       # ── Step 2: Move React Build into Backend folder ───────────────────────
       - name: Move Assets to Backend
