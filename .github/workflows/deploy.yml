@@ -1,0 +1,40 @@
+name: Build and Deploy Fullstack App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      # ── Step 1: Build React Frontend ──────────────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
+      # ── Step 2: Move React Build into Backend folder ───────────────────────
+      - name: Move Assets to Backend
+        run: |
+          mkdir -p backend/frontend_build
+          cp -r frontend/build/* backend/frontend_build/
+
+      # ── Step 3: Deploy Backend (+ embedded frontend) to Azure App Service ──
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: './backend'

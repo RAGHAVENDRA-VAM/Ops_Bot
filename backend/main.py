@@ -586,13 +586,13 @@ def get_candidate_for_multiple_rrfs(rrf_ids: str):
 
 
 # Serve React static files — must be after all API routes
-static_dir = os.path.join(os.path.dirname(__file__), "static")
-if os.path.exists(static_dir):
-    app.mount("/static", StaticFiles(directory=os.path.join(static_dir, "static")), name="static")
+build_dir = os.path.join(os.path.dirname(__file__), "frontend_build")
+if os.path.exists(build_dir):
+    app.mount("/static", StaticFiles(directory=os.path.join(build_dir, "static")), name="static")
 
     @app.get("/{full_path:path}")
     async def serve_react(full_path: str):
-        return FileResponse(os.path.join(static_dir, "index.html"))
+        return FileResponse(os.path.join(build_dir, "index.html"))
 
 # Run the application
 if __name__ == "__main__":
