@@ -18,7 +18,7 @@ from database import (connect_to_retool,
                       get_associates_db,
                       insert_new_associates)
 import pandas as pd
-import google.generativeai as genai
+from google import genai
 import os
 import json
 from typing import Dict, Any,Optional
@@ -35,8 +35,9 @@ app = FastAPI()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     print("Warning: GEMINI_API_KEY environment variable not set")
+    gemini_client = None
 else:
-    genai.configure(api_key=GEMINI_API_KEY)
+    gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
 CORS_ORIGINS = [
     origin.strip()
@@ -71,7 +72,7 @@ def call_gemini_api(df1: pd.DataFrame, df2: pd.DataFrame) -> Dict[str, Any]:
         Dict containing AI analysis and matching recommendations
     """
     try:
-        if not GEMINI_API_KEY:
+        if not GEMINI_API_KEY or not gemini_client:
             return {"error": "Gemini API key not configured"}
         
         # Convert DataFrames to JSON for better API consumption
@@ -118,11 +119,11 @@ def call_gemini_api(df1: pd.DataFrame, df2: pd.DataFrame) -> Dict[str, Any]:
         }}
         """
         
-        # Initialize the Gemini model
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        
-        # Generate response
-        response = model.generate_content(prompt)
+        # Generate response using new SDK
+        response = gemini_client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
         
         # Parse the response
         try:

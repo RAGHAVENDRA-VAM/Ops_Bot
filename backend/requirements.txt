@@ -4,6 +4,6 @@ gunicorn
 python-multipart
 pandas
 openpyxl
-google-generativeai
+google-genai
 psycopg2-binary
 python-dotenv
