@@ -31,7 +31,18 @@ jobs:
           mkdir -p backend/frontend_build
           cp -r frontend/build/* backend/frontend_build/
 
-      # ── Step 3: Deploy Backend (+ embedded frontend) to Azure App Service ──
+      # ── Step 3: Set up Python and install dependencies ─────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          cd backend
+          pip install --target=".python_packages/lib/site-packages" -r requirements.txt
+
+      # ── Step 4: Deploy Backend (+ embedded frontend) to Azure App Service ──
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
