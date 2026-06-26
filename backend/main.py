@@ -162,15 +162,6 @@ def call_gemini_api(df1: pd.DataFrame, df2: pd.DataFrame) -> Dict[str, Any]:
             "error": f"Failed to call Gemini API: {str(e)}"
         }
     
-@app.get("/")
-async def read_root():
-    return {"message": "Hello World"}
-
-# Additional endpoint with path parameter
-@app.get("/hello/{name}")
-async def say_hello(name: str):
-    return {"message": f"Hello {name}"}
-
 
 @app.get("/candidates")
 async def get_candidates():
@@ -588,12 +579,16 @@ def get_candidate_for_multiple_rrfs(rrf_ids: str):
 
 # Serve React static files — must be after all API routes
 build_dir = os.path.join(os.path.dirname(__file__), "frontend_build")
+
 if os.path.exists(build_dir):
     app.mount("/static", StaticFiles(directory=os.path.join(build_dir, "static")), name="static")
 
     @app.get("/{full_path:path}")
     async def serve_react(full_path: str):
-        return FileResponse(os.path.join(build_dir, "index.html"))
+        index = os.path.join(build_dir, "index.html")
+        if os.path.exists(index):
+            return FileResponse(index)
+        return {"message": "Frontend not built yet"}
 
 # Run the application
 if __name__ == "__main__":
