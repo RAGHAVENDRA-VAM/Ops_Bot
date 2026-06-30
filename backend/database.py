@@ -573,7 +573,7 @@ def insert_into_bench_table(df_bench: pd.DataFrame):
             "email", "sub_dept", "relieving_date", "resigned_on",
             "resignation_status", "second_level_manager", "currentskill",
             "primary_skill", "vam_exp", "total_exp", "accountsummary",
-            "resourcing_unit", "workspace"
+            "resourcing_unit", "workspace", "bench_days_assigned"
         ]
 
         # Create a clean copy
@@ -733,6 +733,87 @@ def clear_rrf_table():
             conn.close()
             return False
         
+
+
+def sync_bench_from_powerbi(df: pd.DataFrame):
+    """
+    Clears and repopulates the bench table from a Power BI dataframe.
+    Filters rows where allocation_status == 'BB'.
+    """
+    try:
+        bench_columns = [
+            "vamid", "name", "joining_date", "grade", "tsc", "account",
+            "project", "allocation_status", "allocation_start_date",
+            "allocation_end_date", "first_level_manager", "designation",
+            "email", "sub_dept", "relieving_date", "resigned_on",
+            "resignation_status", "second_level_manager", "currentskill",
+            "primary_skill", "vam_exp", "total_exp", "accountsummary",
+            "resourcing_unit", "workspace", "bench_days_assigned"
+        ]
+        # Map Power BI column names to bench column names
+        column_map = {
+            # normalized PowerBI prefixed names → bench column names
+            "derived_allocations_vamid": "vamid",
+            "derived_allocations_name": "name",
+            "derived_allocations_vamexp": "vam_exp",
+            "derived_allocations_grade_description": "grade",
+            "tsc_description": "tsc",
+            "derived_allocations_workspace": "workspace",
+            "derived_allocations_account_history_summary": "accountsummary",
+            "derived_allocations_currentskill_d": "currentskill",
+            "sumtotal_exp": "total_exp",
+            "sumstatusconcat_with_days_assigned_bb_modified_": "bench_days_assigned",
+            # fallback for non-prefixed names
+            "current_skill": "currentskill",
+            "account_summary": "accountsummary",
+        }
+        df_bench = df.rename(columns=column_map).copy()
+
+        for col in bench_columns:
+            if col not in df_bench.columns:
+                df_bench[col] = None
+
+        date_cols = ["joining_date", "allocation_start_date", "allocation_end_date",
+                     "relieving_date", "resigned_on"]
+        for col in date_cols:
+            if col in df_bench.columns:
+                df_bench[col] = pd.to_datetime(df_bench[col], errors="coerce")
+                df_bench[col] = df_bench[col].apply(lambda x: None if pd.isna(x) else x.to_pydatetime())
+
+        df_bench = df_bench.replace({pd.NaT: None, float("nan"): None})
+        df_bench = df_bench.where(pd.notnull(df_bench), None)
+
+        clear_bench_table()
+        result = insert_into_bench_table(df_bench[bench_columns])
+        return {"success": result, "total_rows": len(df_bench)}
+    except Exception as e:
+        print(f"Error in sync_bench_from_powerbi: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def sync_associates_from_powerbi(df: pd.DataFrame):
+    """
+    Clears and repopulates associates_directory from a Power BI dataframe.
+    """
+    conn = None
+    try:
+        conn = connect_to_retool()
+        cursor = conn.cursor()
+        ensure_associates_table(cursor)
+        cursor.execute("DELETE FROM associates_directory;")
+        conn.commit()
+        cursor.close()
+        conn.close()
+        conn = None
+
+        result = insert_new_associates(df)
+        return result
+    except Exception as e:
+        print(f"Error in sync_associates_from_powerbi: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+        return {"success": False, "error": str(e)}
 
 
 def get_allocated_candidates_db():

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, File, UploadFile
+from fastapi import FastAPI, HTTPException, File, UploadFile, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -16,12 +16,14 @@ from database import (connect_to_retool,
                       get_rrf_by_id,
                       get_allocated_candidates_db,
                       get_associates_db,
-                      insert_new_associates)
+                      insert_new_associates,
+                      sync_bench_from_powerbi,
+                      sync_associates_from_powerbi)
 import pandas as pd
 from google import genai
 import os
 import json
-from typing import Dict, Any,Optional
+from typing import Dict, Any, Optional, List
 import io
 
 # from openai import AzureOpenAI
@@ -163,6 +165,32 @@ def call_gemini_api(df1: pd.DataFrame, df2: pd.DataFrame) -> Dict[str, Any]:
         }
     
 
+@app.post("/admin/migrate")
+def run_migration(x_api_key: Optional[str] = Header(None)):
+    api_key = os.getenv("SYNC_API_KEY")
+    if api_key and x_api_key != api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        conn = connect_to_retool()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'bench' AND column_name = 'bench_days_assigned';
+        """)
+        exists = cursor.fetchone()
+        if exists:
+            cursor.close()
+            conn.close()
+            return {"message": "Column 'bench_days_assigned' already exists. Nothing to do."}
+        cursor.execute("ALTER TABLE bench ADD COLUMN bench_days_assigned INTEGER;")
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return {"message": "Migration successful: added 'bench_days_assigned' to bench table."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/candidates")
 async def get_candidates():
     candidates = get_candidates_db()
@@ -270,6 +298,32 @@ async def upload_associates_file(associates_file: UploadFile = File(...)):
     except Exception as e:
         print(f"Error processing associates file: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing associates file: {str(e)}")
+
+
+@app.post("/sync/powerbi")
+async def sync_powerbi(payload: dict, x_api_key: Optional[str] = Header(None)):
+    api_key = os.getenv("SYNC_API_KEY")
+    if api_key and x_api_key != api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    rows = payload.get("rows")
+    if not rows or not isinstance(rows, list):
+        raise HTTPException(status_code=400, detail="'rows' must be a non-empty list")
+
+    df = pd.DataFrame(rows)
+    df.columns = (
+        df.columns.str.strip().str.lower()
+        .str.replace(r'[^a-z0-9]+', '_', regex=True)
+    )
+
+    bench_result = sync_bench_from_powerbi(df)
+    associates_result = sync_associates_from_powerbi(df)
+
+    return {
+        "success": True,
+        "bench": bench_result,
+        "associates": associates_result
+    }
 
 
 @app.get("/get_all_details")
