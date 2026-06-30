@@ -795,6 +795,7 @@ def sync_bench_from_powerbi(df: pd.DataFrame):
 def sync_associates_from_powerbi(df: pd.DataFrame):
     """
     Clears and repopulates associates_directory from a Power BI dataframe.
+    Uses bulk insert for performance.
     """
     conn = None
     try:
@@ -803,12 +804,63 @@ def sync_associates_from_powerbi(df: pd.DataFrame):
         ensure_associates_table(cursor)
         cursor.execute("DELETE FROM associates_directory;")
         conn.commit()
+
+        df_clean = df.copy()
+        df_clean.columns = [_normalize_column_name(c) for c in df_clean.columns]
+
+        # Map PowerBI normalized column names to associate fields
+        col_map = {
+            "derived_allocations_vamid": "vamid",
+            "derived_allocations_name": "name",
+            "derived_allocations_grade_description": "grade",
+            "derived_allocations_currentskill_d": "skill",
+            "derived_allocations_workspace": "workspace",
+            "derived_allocations_account_history_summary": "account",
+            "tsc_description": "tsc",
+        }
+        df_clean = df_clean.rename(columns=col_map)
+
+        records = []
+        for _, row in df_clean.iterrows():
+            normalized = {k: (None if pd.isna(v) else str(v).strip()) for k, v in row.items()}
+            vamid = normalized.get("vamid") or None
+            name  = normalized.get("name") or None
+            if not vamid and not name:
+                continue
+            records.append((
+                vamid,
+                name,
+                None,                          # email
+                normalized.get("account"),
+                normalized.get("skill"),
+                None,                          # primary_skill
+                None,                          # secondary_skill
+                normalized.get("grade"),
+                None,                          # designation
+                None,                          # manager
+                Json({k: v for k, v in normalized.items()})
+            ))
+
+        if records:
+            cursor.executemany(
+                """
+                INSERT INTO associates_directory
+                    (vamid, name, email, account, skill, primary_skill,
+                     secondary_skill, grade, designation, manager, raw_data)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (vamid) DO UPDATE SET
+                    name        = EXCLUDED.name,
+                    account     = EXCLUDED.account,
+                    skill       = EXCLUDED.skill,
+                    grade       = EXCLUDED.grade,
+                    raw_data    = EXCLUDED.raw_data;
+                """,
+                records
+            )
+        conn.commit()
         cursor.close()
         conn.close()
-        conn = None
-
-        result = insert_new_associates(df)
-        return result
+        return {"inserted": len(records), "updated": 0, "skipped": len(df) - len(records), "total_rows": len(df)}
     except Exception as e:
         print(f"Error in sync_associates_from_powerbi: {e}")
         if conn:

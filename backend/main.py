@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, File, UploadFile, Header
+from fastapi import FastAPI, HTTPException, File, UploadFile, Header, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -167,7 +167,7 @@ def call_gemini_api(df1: pd.DataFrame, df2: pd.DataFrame) -> Dict[str, Any]:
 
 @app.post("/admin/migrate")
 def run_migration(x_api_key: Optional[str] = Header(None)):
-    api_key = os.getenv("SYNC_API_KEY")
+    api_key = os.getenv("X_API_KEY")
     if api_key and x_api_key != api_key:
         raise HTTPException(status_code=401, detail="Unauthorized")
     try:
@@ -301,8 +301,8 @@ async def upload_associates_file(associates_file: UploadFile = File(...)):
 
 
 @app.post("/sync/powerbi")
-async def sync_powerbi(payload: dict, x_api_key: Optional[str] = Header(None)):
-    api_key = os.getenv("SYNC_API_KEY")
+async def sync_powerbi(payload: dict, background_tasks: BackgroundTasks, x_api_key: Optional[str] = Header(None)):
+    api_key = os.getenv("X_API_KEY")
     if api_key and x_api_key != api_key:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -317,13 +317,20 @@ async def sync_powerbi(payload: dict, x_api_key: Optional[str] = Header(None)):
         .str.strip('_')
     )
 
-    bench_result = sync_bench_from_powerbi(df)
-    associates_result = sync_associates_from_powerbi(df)
+    def run_sync(dataframe: pd.DataFrame):
+        try:
+            bench_result = sync_bench_from_powerbi(dataframe)
+            associates_result = sync_associates_from_powerbi(dataframe)
+            print(f"[sync/powerbi] bench={bench_result} associates={associates_result}")
+        except Exception as e:
+            print(f"[sync/powerbi] background sync error: {e}")
+
+    background_tasks.add_task(run_sync, df)
 
     return {
         "success": True,
-        "bench": bench_result,
-        "associates": associates_result
+        "message": f"Sync started for {len(rows)} rows in background",
+        "total_rows": len(rows)
     }
 
 
