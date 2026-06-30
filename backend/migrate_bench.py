@@ -1,6 +1,6 @@
 """
-Migration script: adds bench_days_assigned column to the bench table.
-Runs safely with IF NOT EXISTS logic via information_schema check.
+Migration script: adds missing columns to the bench table.
+Runs safely - skips columns that already exist.
 """
 import os
 import psycopg2
@@ -13,19 +13,23 @@ def run():
     conn = psycopg2.connect(db_url)
     cursor = conn.cursor()
 
-    # Check if column already exists
-    cursor.execute("""
-        SELECT column_name FROM information_schema.columns
-        WHERE table_name = 'bench' AND column_name = 'bench_days_assigned';
-    """)
-    exists = cursor.fetchone()
+    migrations = [
+        ("bench_days_assigned", "ALTER TABLE bench ADD COLUMN bench_days_assigned INTEGER;"),
+        ("secondary_skill",     "ALTER TABLE bench ADD COLUMN secondary_skill TEXT;"),
+        ("third_skill",         "ALTER TABLE bench ADD COLUMN third_skill TEXT;"),
+    ]
 
-    if exists:
-        print("Column 'bench_days_assigned' already exists. Nothing to do.")
-    else:
-        cursor.execute("ALTER TABLE bench ADD COLUMN bench_days_assigned INTEGER;")
-        conn.commit()
-        print("Migration successful: added 'bench_days_assigned' column to bench table.")
+    for col, sql in migrations:
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'bench' AND column_name = %s;
+        """, (col,))
+        if cursor.fetchone():
+            print(f"Column '{col}' already exists. Skipping.")
+        else:
+            cursor.execute(sql)
+            conn.commit()
+            print(f"Migration successful: added '{col}' to bench table.")
 
     cursor.close()
     conn.close()

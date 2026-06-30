@@ -24,30 +24,39 @@ const Candidates = ({ statuses, handleCandidateTableChange, handleCandidateSave 
       axios.get(`${API_BASE}/candidates`),
       axios.get(`${API_BASE}/rrf`)
     ]).then(([candidatesRes, rrfRes]) => {
-      // Support new API contract: { available_candidates, other_candidates }
-      let available = [];
-      let others = [];
-      if (candidatesRes.data) {
-        if (Array.isArray(candidatesRes.data.available_candidates)) {
-          available = candidatesRes.data.available_candidates;
-        } else if (Array.isArray(candidatesRes.data)) {
-          available = candidatesRes.data;
-        } else if (Array.isArray(candidatesRes.data.candidates)) {
-          available = candidatesRes.data.candidates;
-        }
-        if (Array.isArray(candidatesRes.data.other_candidates)) {
-          others = candidatesRes.data.other_candidates;
-        }
-      }
-      setCandidatesTableData(available.map(c => ({ vamid: c.vamid, name: c.name, allocation_status: c.allocation_status })));
-      setOtherCandidates(others.map(c => ({ vamid: c.vamid, name: c.name, allocation_status: c.allocation_status })));
-      
+      const data = candidatesRes.data || {};
+      const bench = Array.isArray(data.bench_candidates) ? data.bench_candidates : [];
+      const allocated = Array.isArray(data.allocated_resources) ? data.allocated_resources : [];
+
+      setCandidatesTableData(bench.map(c => ({
+        vamid: c.vamid,
+        name: c.name,
+        grade: c.grade,
+        tsc: c.tsc,
+        workspace: c.workspace,
+        current_skill: c.current_skill,
+        secondary_skill: c.secondary_skill,
+        third_skill: c.third_skill,
+        vam_exp: c.vam_exp,
+        total_exp: c.total_exp,
+        account_summary: c.account_summary,
+        bench_days_assigned: c.bench_days_assigned,
+        allocation_status: 'BB'
+      })));
+      setOtherCandidates(allocated.map(c => ({
+        vamid: c.vamid,
+        name: c.name,
+        grade: c.grade,
+        tsc: c.tsc,
+        workspace: c.workspace,
+        current_skill: c.current_skill,
+        account_summary: c.account_summary,
+        allocation_status: 'Allocated'
+      })));
+
       let rrfList = [];
-      if (Array.isArray(rrfRes.data)) {
-        rrfList = rrfRes.data;
-      } else if (rrfRes.data && Array.isArray(rrfRes.data.rrf)) {
-        rrfList = rrfRes.data.rrf;
-      }
+      if (Array.isArray(rrfRes.data)) rrfList = rrfRes.data;
+      else if (rrfRes.data && Array.isArray(rrfRes.data.rrf)) rrfList = rrfRes.data.rrf;
       setPositions([...new Set(rrfList.map(r => r.rrf_id).filter(Boolean))]);
       setAccounts([...new Set(rrfList.map(r => r.account).filter(Boolean))]);
       const map = {};
@@ -55,6 +64,7 @@ const Candidates = ({ statuses, handleCandidateTableChange, handleCandidateSave 
       setRrfMap(map);
     }).catch(() => {
       setCandidatesTableData([]);
+      setOtherCandidates([]);
       setPositions([]);
       setAccounts([]);
       setRrfMap({});
@@ -93,75 +103,47 @@ const Candidates = ({ statuses, handleCandidateTableChange, handleCandidateSave 
     });
   };
 
+  const refreshCandidates = async () => {
+    try {
+      const cRes = await axios.get(`${API_BASE}/candidates`);
+      const data = cRes.data || {};
+      const bench = Array.isArray(data.bench_candidates) ? data.bench_candidates : [];
+      const allocated = Array.isArray(data.allocated_resources) ? data.allocated_resources : [];
+      setCandidatesTableData(bench.map(c => ({
+        vamid: c.vamid, name: c.name, grade: c.grade, tsc: c.tsc,
+        workspace: c.workspace, current_skill: c.current_skill,
+        secondary_skill: c.secondary_skill, third_skill: c.third_skill,
+        vam_exp: c.vam_exp, total_exp: c.total_exp,
+        account_summary: c.account_summary, bench_days_assigned: c.bench_days_assigned,
+        allocation_status: 'BB'
+      })));
+      setOtherCandidates(allocated.map(c => ({
+        vamid: c.vamid, name: c.name, grade: c.grade, tsc: c.tsc,
+        workspace: c.workspace, current_skill: c.current_skill,
+        account_summary: c.account_summary, allocation_status: 'Allocated'
+      })));
+      try { window.dispatchEvent(new Event('refreshDashboard')); } catch (e) { }
+      try { window.dispatchEvent(new Event('refreshCounts')); } catch (e) { }
+    } catch (err) {
+      console.error('Error refreshing candidates:', err);
+    }
+  };
+
   // Save handler
   const handleSave = (row) => {
-    const statusRaw = (row.status || row.allocation_status || '').toString();
-    const statusNorm = statusRaw.toLowerCase().trim().replace(/\s+/g, '-');
-    // If user set On-Hold, do not call allocation API; refresh lists/dashboard to reflect counts
-    if (statusNorm === 'on-hold') {
-      toast.success('Marked On-Hold locally — refreshing lists.');
-      // Refresh candidates and dashboard to reflect server state (On-Hold is local and shouldn't affect bench counts)
-      (async () => {
-        try {
-          const [cRes] = await Promise.all([
-            axios.get(`${API_BASE}/candidates`),
-            axios.get(`${API_BASE}/dashboard`)
-          ]);
-          let available = [];
-          let others = [];
-          if (cRes.data) {
-            if (Array.isArray(cRes.data.available_candidates)) available = cRes.data.available_candidates;
-            else if (Array.isArray(cRes.data)) available = cRes.data;
-            else if (Array.isArray(cRes.data.candidates)) available = cRes.data.candidates;
-            if (Array.isArray(cRes.data.other_candidates)) others = cRes.data.other_candidates;
-          }
-          setCandidatesTableData(available.map(c => ({ vamid: c.vamid, name: c.name, allocation_status: c.allocation_status })));
-          setOtherCandidates(others.map(c => ({ vamid: c.vamid, name: c.name, allocation_status: c.allocation_status })));
-          try { window.dispatchEvent(new Event('refreshDashboard')); } catch (e) { /* noop */ }
-        } catch (err) {
-          // ignore errors but notify user
-          console.error('Error refreshing after On-Hold:', err);
-        }
-      })();
-      if (typeof handleCandidateSave === 'function') handleCandidateSave(row);
-      return;
-    }
     if (row.position && row.vamid) {
       axios.post(`${API_BASE}/update_position/${row.position}/${row.vamid}`)
         .then(async () => {
           toast.success('Position updated successfully!');
-          try {
-            const [cRes] = await Promise.all([
-              axios.get(`${API_BASE}/candidates`),
-              axios.get(`${API_BASE}/dashboard`)
-            ]);
-            // update candidates lists
-            let available = [];
-            let others = [];
-            if (cRes.data) {
-              if (Array.isArray(cRes.data.available_candidates)) available = cRes.data.available_candidates;
-              else if (Array.isArray(cRes.data)) available = cRes.data;
-              else if (Array.isArray(cRes.data.candidates)) available = cRes.data.candidates;
-              if (Array.isArray(cRes.data.other_candidates)) others = cRes.data.other_candidates;
-            }
-            setCandidatesTableData(available.map(c => ({ vamid: c.vamid, name: c.name, allocation_status: c.allocation_status })));
-            setOtherCandidates(others.map(c => ({ vamid: c.vamid, name: c.name, allocation_status: c.allocation_status })));
-            // Notify other components (Dashboard, App) to refresh counts/state
-            try { window.dispatchEvent(new Event('refreshDashboard')); } catch (e) { /* noop */ }
-            try { window.dispatchEvent(new Event('refreshCounts')); } catch (e) { /* noop */ }
-          } catch (err) {
-            // ignore refresh errors, but still inform user
-          }
+          await refreshCandidates();
         })
         .catch(() => {
           toast.error('Failed to update position.');
         });
     } else {
-      toast.warn('Please select both RRF ID and candidate VAM ID.');
+      toast.warn('Please select an RRF ID before saving.');
     }
-    if (typeof handleCandidateSave === 'function') {
-      handleCandidateSave(row);
-    }
+    if (typeof handleCandidateSave === 'function') handleCandidateSave(row);
   };
 
   if (loading) return <Loader message="Loading candidates..." />;
@@ -175,8 +157,16 @@ const Candidates = ({ statuses, handleCandidateTableChange, handleCandidateSave 
             <tr>
               <th>VAM ID</th>
               <th>Candidate Name</th>
+              <th>Grade</th>
+              <th>TSC</th>
+              <th>Workspace</th>
+              <th>Primary Skill</th>
+              <th>Secondary Skill</th>
+              <th>VAM Exp (yrs)</th>
+              <th>Total Exp (yrs)</th>
+              <th>Bench Days</th>
+              <th>Account History</th>
               <th>Position</th>
-              <th>Status</th>
               <th>Account</th>
               <th>Action</th>
             </tr>
@@ -189,46 +179,42 @@ const Candidates = ({ statuses, handleCandidateTableChange, handleCandidateSave 
                 <tr key={row.vamid || row.name || row.id || idx}>
                   <td>{row.vamid}</td>
                   <td>{row.name}</td>
+                  <td><span className="grade-pill">{row.grade || '-'}</span></td>
+                  <td>{row.tsc || '-'}</td>
+                  <td>{row.workspace || '-'}</td>
+                  <td>{row.current_skill || '-'}</td>
+                  <td>
+                    {[row.secondary_skill, row.third_skill].filter(Boolean).join(', ') || '-'}
+                  </td>
+                  <td>{row.vam_exp != null ? Number(row.vam_exp).toFixed(1) : '-'}</td>
+                  <td>{row.total_exp != null ? Number(row.total_exp).toFixed(1) : '-'}</td>
+                  <td>
+                    <span className={`bench-days ${row.bench_days_assigned > 180 ? 'high' : row.bench_days_assigned > 90 ? 'medium' : 'low'}`}>
+                      {row.bench_days_assigned ?? '-'}
+                    </span>
+                  </td>
+                  <td className="account-history">{row.account_summary || '-'}</td>
                   <td>
                     <Select
                       options={positions.map(rrfId => ({ value: rrfId, label: rrfId }))}
                       value={row.position ? { value: row.position, label: row.position } : null}
                       onChange={option => handleTableChange(idx, 'position', option ? option.value : '')}
-                      placeholder="Select or search RRF ID"
+                      placeholder="Select RRF ID"
                       isClearable
-                      styles={{ container: base => ({ ...base, minWidth: 180 }) }}
+                      styles={{ container: base => ({ ...base, minWidth: 160 }) }}
                     />
-                  </td>
-                  <td>
-                    {
-                      (() => {
-                        const s = (row.status || '').toString();
-                        const norm = s.toLowerCase();
-                        if (norm === 'available') {
-                          return <span style={{fontWeight:600,color:'#0f5132'}}>Available</span>;
-                        }
-                        // show dropdown of non-available statuses
-                        const opts = statuses.filter(st => st.toLowerCase() !== 'available');
-                        return (
-                          <select value={row.status || ''} onChange={e => handleTableChange(idx, 'status', e.target.value)}>
-                            <option value="">Select Status</option>
-                            {opts.map((status, i) => <option key={i} value={status}>{status}</option>)}
-                          </select>
-                        );
-                      })()
-                    }
                   </td>
                   <td>
                     <input
                       type="text"
                       value={row.account || ''}
                       readOnly={!!row.position}
-                      placeholder="Account will auto-fill"
-                      style={{ background: row.position ? '#f7f9fa' : undefined }}
+                      placeholder="Auto-fill"
+                      style={{ background: row.position ? '#f7f9fa' : undefined, minWidth: 120 }}
                     />
                   </td>
                   <td>
-                    <button className="btn-primary" onClick={() => handleSave(row)} disabled={((row.status||'').toString().toLowerCase() === 'available')}>Save</button>
+                    <button className="btn-primary" onClick={() => handleSave(row)} disabled={!row.position}>Save</button>
                   </td>
                 </tr>
               ))
@@ -236,23 +222,45 @@ const Candidates = ({ statuses, handleCandidateTableChange, handleCandidateSave 
           </tbody>
         </table>
       </div>
-      <div style={{marginTop:16}}>
+      <div style={{marginTop:24}}>
         <details className="other-candidates">
-          <summary style={{cursor:'pointer'}}>Other Candidates ({otherCandidates.length})</summary>
-          <div style={{padding:'8px 12px'}}>
+          <summary style={{cursor:'pointer', fontWeight:600}}>
+            Allocated Resources ({otherCandidates.length})
+          </summary>
+          <div style={{padding:'8px 0'}}>
             {otherCandidates.length === 0 ? (
-              <div style={{color:'#94a3b8'}}>No other candidates.</div>
+              <div style={{color:'#94a3b8', padding:'8px 12px'}}>No allocated resources.</div>
             ) : (
-              <table className="candidates-table small">
-                <thead>
-                  <tr><th>VAM ID</th><th>Name</th><th>Status</th></tr>
-                </thead>
-                <tbody>
-                  {otherCandidates.map((c, i) => (
-                    <tr key={c.vamid || i}><td>{c.vamid}</td><td>{c.name}</td><td>{(c.allocation_status||'').toString()}</td></tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="candidates-table-container">
+                <table className="candidates-table small">
+                  <thead>
+                    <tr>
+                      <th>VAM ID</th>
+                      <th>Name</th>
+                      <th>Grade</th>
+                      <th>TSC</th>
+                      <th>Workspace</th>
+                      <th>Skill</th>
+                      <th>Account History</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {otherCandidates.map((c, i) => (
+                      <tr key={c.vamid || i}>
+                        <td>{c.vamid}</td>
+                        <td>{c.name}</td>
+                        <td><span className="grade-pill">{c.grade || '-'}</span></td>
+                        <td>{c.tsc || '-'}</td>
+                        <td>{c.workspace || '-'}</td>
+                        <td>{c.current_skill || '-'}</td>
+                        <td className="account-history">{c.account_summary || '-'}</td>
+                        <td><span style={{color:'#16a34a', fontWeight:600}}>Allocated</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </details>

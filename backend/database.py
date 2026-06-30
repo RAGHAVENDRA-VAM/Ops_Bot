@@ -269,45 +269,81 @@ def insert_new_associates(df_associates: pd.DataFrame):
         if conn:
             conn.close()
 
+def get_allocated_resources_db():
+    """
+    Returns Platform, App & Infra resources currently allocated to accounts
+    i.e. bench_days_assigned IS NULL or 0.
+    """
+    try:
+        conn = connect_to_retool()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT vamid, name, grade, tsc, workspace, currentskill, secondary_skill,
+                   third_skill, vam_exp, total_exp, accountsummary, bench_days_assigned
+            FROM bench
+            WHERE tsc = 'Platform, App & Infra'
+              AND (bench_days_assigned IS NULL OR bench_days_assigned = 0)
+            ORDER BY name ASC;
+        """)
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return [
+            {
+                "vamid":               r[0],
+                "name":                r[1],
+                "grade":               r[2],
+                "tsc":                 r[3],
+                "workspace":           r[4],
+                "current_skill":       r[5],
+                "secondary_skill":     r[6],
+                "third_skill":         r[7],
+                "vam_exp":             r[8],
+                "total_exp":           r[9],
+                "account_summary":     r[10],
+                "bench_days_assigned": r[11],
+                "allocation_status":   "Allocated"
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        print(f"Error retrieving allocated resources: {e}")
+        if 'conn' in locals():
+            conn.close()
+        return []
+
+
 def get_candidates_db():
     try:
         conn = connect_to_retool()
-        # print("=============")
-        # print(conn)
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM bench WHERE allocation_status = 'BB';")
+        # BB = Bench resources: Platform, App & Infra TSC with bench_days_assigned > 0
+        cursor.execute("""
+            SELECT vamid, name, grade, tsc, workspace, currentskill, secondary_skill,
+                   third_skill, vam_exp, total_exp, accountsummary, bench_days_assigned
+            FROM bench
+            WHERE tsc = 'Platform, App & Infra'
+              AND bench_days_assigned > 0
+            ORDER BY bench_days_assigned DESC, name ASC;
+        """)
         candidates = cursor.fetchall()
-        # print(candidates)
-        dict_candidates=[]
-        for candidate in candidates:
-            values={
-                "vamid": candidate[1] if len(candidate) > 1 else None,
-                "name": candidate[2] if len(candidate) > 2 else None,
-                "joining_date": candidate[3] if len(candidate) > 3 else None,
-                "grade": candidate[4] if len(candidate) > 4 else None,
-                "tsc": candidate[5] if len(candidate) > 5 else None,
-                "account": candidate[6] if len(candidate) > 6 else None,
-                "project": candidate[7] if len(candidate) > 7 else None,
-                "allocation_status": candidate[8] if len(candidate) > 8 else None,
-                "allocation_start_date": candidate[9] if len(candidate) > 9 else None,
-                "allocation_end_date": candidate[10] if len(candidate) > 10 else None,
-                "first_level_manager": candidate[11] if len(candidate) > 11 else None,
-                "designation": candidate[12] if len(candidate) > 12 else None,
-                "email": candidate[13] if len(candidate) > 13 else None,
-                "sub_dept": candidate[14] if len(candidate) > 14 else None,
-                "relieving_date": candidate[15] if len(candidate) > 15 else None,
-                "resigned_on": candidate[16] if len(candidate) > 16 else None,
-                "resignation_status": candidate[17] if len(candidate) > 17 else None,
-                "second_level_manager": candidate[18] if len(candidate) > 18 else None,
-                "current_skill": candidate[19] if len(candidate) > 19 else None,
-                "primary_skill": candidate[20] if len(candidate) > 20 else None,
-                "vam_exp": candidate[21] if len(candidate) > 21 else None,
-                "total_exp": candidate[22] if len(candidate) > 22 else None,
-                "account_summary": candidate[23] if len(candidate) > 23 else None,
-                "resourcing_unit": candidate[24] if len(candidate) > 24 else None,
-                "workspace": candidate[25] if len(candidate) > 25 else None,
-            }
-            dict_candidates.append(values)
+        dict_candidates = []
+        for c in candidates:
+            dict_candidates.append({
+                "vamid":               c[0],
+                "name":                c[1],
+                "grade":               c[2],
+                "tsc":                 c[3],
+                "workspace":           c[4],
+                "current_skill":       c[5],
+                "secondary_skill":     c[6],
+                "third_skill":         c[7],
+                "vam_exp":             c[8],
+                "total_exp":           c[9],
+                "account_summary":     c[10],
+                "bench_days_assigned": c[11],
+                "allocation_status":   "BB"
+            })
         cursor.close()
         conn.close()
         return dict_candidates
@@ -315,7 +351,7 @@ def get_candidates_db():
         print(f"Error retrieving candidates: {e}")
         if 'conn' in locals():
             conn.close()
-        return {}
+        return []
 
 def candidate_by_id(vam_id: str):
     try:
@@ -413,7 +449,7 @@ def get_dashboard():
         cursor = conn.cursor()
 
         # Bench count
-        cursor.execute("SELECT COUNT(name) FROM bench WHERE allocation_status = 'BB';")
+        cursor.execute("SELECT COUNT(*) FROM bench WHERE tsc = 'Platform, App & Infra' AND bench_days_assigned > 0;")
         bench_count = cursor.fetchone()[0]
         # print("===")
         # print(f"Bench count: {bench_count}")
@@ -573,7 +609,8 @@ def insert_into_bench_table(df_bench: pd.DataFrame):
             "email", "sub_dept", "relieving_date", "resigned_on",
             "resignation_status", "second_level_manager", "currentskill",
             "primary_skill", "vam_exp", "total_exp", "accountsummary",
-            "resourcing_unit", "workspace", "bench_days_assigned"
+            "resourcing_unit", "workspace", "bench_days_assigned",
+            "secondary_skill", "third_skill"
         ]
 
         # Create a clean copy
@@ -748,7 +785,8 @@ def sync_bench_from_powerbi(df: pd.DataFrame):
             "email", "sub_dept", "relieving_date", "resigned_on",
             "resignation_status", "second_level_manager", "currentskill",
             "primary_skill", "vam_exp", "total_exp", "accountsummary",
-            "resourcing_unit", "workspace", "bench_days_assigned"
+            "resourcing_unit", "workspace", "bench_days_assigned",
+            "secondary_skill", "third_skill"
         ]
         # Map Power BI column names to bench column names
         column_map = {
@@ -762,6 +800,8 @@ def sync_bench_from_powerbi(df: pd.DataFrame):
             "derived_allocations_workspace": "workspace",
             "derived_allocations_account_history_summary": "accountsummary",
             "derived_allocations_currentskill_d": "currentskill",
+            "skills_secondary_skill": "secondary_skill",
+            "skills_third_skill": "third_skill",
             "sumtotal_exp": "total_exp",
             "sumstatusconcat_with_days_assigned_bb_modified": "bench_days_assigned",
             # fallback for non-prefixed names

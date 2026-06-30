@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from database import (connect_to_retool,
                       get_candidates_db,
+                      get_allocated_resources_db,
                       get_dashboard,
                       get_rrf_details,
                       update_associate_status,
@@ -193,8 +194,14 @@ def run_migration(x_api_key: Optional[str] = Header(None)):
 
 @app.get("/candidates")
 async def get_candidates():
-    candidates = get_candidates_db()
-    return {"candidates": candidates}
+    bench = get_candidates_db()
+    allocated = get_allocated_resources_db()
+    return {
+        "bench_candidates": bench,
+        "allocated_resources": allocated,
+        "bench_count": len(bench),
+        "allocated_count": len(allocated)
+    }
 
 
 @app.get("/dashboard")

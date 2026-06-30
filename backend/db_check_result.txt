@@ -1,17 +1,15 @@
 bench total rows       : 175
 bench BB status        : 0
-bench with vamid       : 0
-bench_days_assigned filled: 0
-bench vam_exp filled   : 0
-bench total_exp filled : 0
+bench with vamid       : 175
+bench_days_assigned filled: 61
+bench vam_exp filled   : 175
+bench total_exp filled : 175
 rrf total rows         : 74
 rrf open               : 17
-associates_directory   : 0
+associates_directory   : 175
 allocation_table       : 11
 
 Sample bench rows (non-null vamid):
-
-Sample bench rows (raw):
-(273, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None)
-(274, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None)
-(275, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None)
+('VMM Test', 'Enterprise Applications', 'L1', 'Platform, App & Infra', '', 4.391781, 4.391781, 387, None)
+('103132', 'Keerthidhar Janga', 'A4', 'Risk Analytics', 'Palnadu', 1.8904109, 6.290411, 379, None)
+('101962', 'Saikiran Mai Velikanti', 'A4', 'Data & Advanced Analytics', 'Palnadu', 4.0849314, 8.884932, 370, None)
