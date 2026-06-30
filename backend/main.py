@@ -314,6 +314,7 @@ async def sync_powerbi(payload: dict, x_api_key: Optional[str] = Header(None)):
     df.columns = (
         df.columns.str.strip().str.lower()
         .str.replace(r'[^a-z0-9]+', '_', regex=True)
+        .str.strip('_')
     )
 
     bench_result = sync_bench_from_powerbi(df)

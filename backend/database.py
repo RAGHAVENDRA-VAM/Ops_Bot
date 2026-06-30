@@ -753,6 +753,7 @@ def sync_bench_from_powerbi(df: pd.DataFrame):
         # Map Power BI column names to bench column names
         column_map = {
             # normalized PowerBI prefixed names → bench column names
+            # (after .str.strip('_') applied in main.py)
             "derived_allocations_vamid": "vamid",
             "derived_allocations_name": "name",
             "derived_allocations_vamexp": "vam_exp",
@@ -762,7 +763,7 @@ def sync_bench_from_powerbi(df: pd.DataFrame):
             "derived_allocations_account_history_summary": "accountsummary",
             "derived_allocations_currentskill_d": "currentskill",
             "sumtotal_exp": "total_exp",
-            "sumstatusconcat_with_days_assigned_bb_modified_": "bench_days_assigned",
+            "sumstatusconcat_with_days_assigned_bb_modified": "bench_days_assigned",
             # fallback for non-prefixed names
             "current_skill": "currentskill",
             "account_summary": "accountsummary",

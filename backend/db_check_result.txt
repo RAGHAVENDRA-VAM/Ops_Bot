@@ -1,0 +1,17 @@
+bench total rows       : 175
+bench BB status        : 0
+bench with vamid       : 0
+bench_days_assigned filled: 0
+bench vam_exp filled   : 0
+bench total_exp filled : 0
+rrf total rows         : 74
+rrf open               : 17
+associates_directory   : 0
+allocation_table       : 11
+
+Sample bench rows (non-null vamid):
+
+Sample bench rows (raw):
+(273, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None)
+(274, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None)
+(275, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None)

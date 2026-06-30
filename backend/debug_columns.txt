@@ -1,0 +1,35 @@
+=== Normalized column names arriving from PowerBI ===
+  'derived_allocations_vamid'
+  'derived_allocations_name'
+  'derived_allocations_vamexp'
+  'derived_allocations_grade_description'
+  'tsc_description'
+  'derived_allocations_workspace'
+  'derived_allocations_account_history_summary'
+  'sumstatusconcat_with_days_assigned_bb_modified'
+  'sumtotal_exp'
+
+=== Column mapping result ===
+  'derived_allocations_vamid' -> vamid
+  'derived_allocations_name' -> name
+  'derived_allocations_vamexp' -> vam_exp
+  'derived_allocations_grade_description' -> grade
+  'tsc_description' -> tsc
+  'derived_allocations_workspace' -> workspace
+  'derived_allocations_account_history_summary' -> accountsummary
+  'sumstatusconcat_with_days_assigned_bb_modified' -> bench_days_assigned
+  'sumtotal_exp' -> total_exp
+
+=== After rename, columns ===
+  'vamid'
+  'name'
+  'vam_exp'
+  'grade'
+  'tsc'
+  'workspace'
+  'accountsummary'
+  'bench_days_assigned'
+  'total_exp'
+
+=== Sample values after mapping ===
+[{'vamid': '103132', 'name': 'Keerthidhar Janga', 'vam_exp': 1.887, 'grade': 'A4', 'tsc': 'Risk Analytics', 'workspace': 'Palnadu', 'accountsummary': 'Guard Insurance_01', 'bench_days_assigned': 378, 'total_exp': 6.287}]

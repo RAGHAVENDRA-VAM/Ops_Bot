@@ -2,10 +2,15 @@
 Migration script: adds bench_days_assigned column to the bench table.
 Runs safely with IF NOT EXISTS logic via information_schema check.
 """
-from database import connect_to_retool
+import os
+import psycopg2
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def run():
-    conn = connect_to_retool()
+    db_url = os.getenv("DATABASE_URL", "").strip()
+    conn = psycopg2.connect(db_url)
     cursor = conn.cursor()
 
     # Check if column already exists
