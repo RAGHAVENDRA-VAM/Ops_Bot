@@ -70,19 +70,21 @@ const Dashboard = () => {
     setLoadingBench(true);
     axios.get(`${API_BASE}/candidates`)
       .then(res => {
-        // Support { available_candidates, other_candidates } shape
-        let arr = [];
-        if (res.data) {
-          if (Array.isArray(res.data.available_candidates)) {
-            arr = res.data.available_candidates.concat(res.data.other_candidates || []);
-          } else if (Array.isArray(res.data)) arr = res.data;
-          else if (Array.isArray(res.data.candidates)) arr = res.data.candidates;
-        }
-        setBenchRows(arr.map(c => ({
-          vamid: c.vamid,
-          name: c.name,
-          skill: c.primary_skill || c.current_skill || '-',
-          grade: c.grade
+        const data = res.data || {};
+        const bench = Array.isArray(data.bench_candidates) ? data.bench_candidates : [];
+        setBenchRows(bench.map(c => ({
+          vamid:               c.vamid,
+          name:                c.name,
+          grade:               c.grade,
+          tsc:                 c.tsc,
+          workspace:           c.workspace,
+          current_skill:       c.current_skill,
+          secondary_skill:     c.secondary_skill,
+          third_skill:         c.third_skill,
+          vam_exp:             c.vam_exp,
+          total_exp:           c.total_exp,
+          account_summary:     c.account_summary,
+          bench_days_assigned: c.bench_days_assigned,
         })));
       })
       .catch(() => setBenchRows([]))
@@ -172,29 +174,58 @@ const Dashboard = () => {
       )}
       {showBenchTable && (
         <div className="dashboard-table-container">
-          <h3>Bench People</h3>
+          <h3>Bench People ({benchRows.length})</h3>
           {loadingBench ? (
-            <div className="dashboard-loading">Loading...</div>
+            <table className="dashboard-table">
+              <thead>
+                <tr>
+                  <th>VAM ID</th><th>Name</th><th>Grade</th><th>Workspace</th><th>Skill</th><th>Bench Days</th><th>VAM Exp</th><th>Account History</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={8} />)}
+              </tbody>
+            </table>
           ) : (
             <table className="dashboard-table">
               <thead>
                 <tr>
                   <th>VAM ID</th>
                   <th>Name</th>
-                  <th>Skill</th>
                   <th>Grade</th>
+                  <th>Workspace</th>
+                  <th>Primary Skill</th>
+                  <th>Secondary Skill</th>
+                  <th>Bench Days</th>
+                  <th>VAM Exp (yrs)</th>
+                  <th>Account History</th>
                 </tr>
               </thead>
               <tbody>
                 {benchRows.length === 0 ? (
-                  <tr><td colSpan="4" style={{textAlign:'center',color:'#94a3b8',padding:'24px'}}>No Bench People found.</td></tr>
+                  <tr><td colSpan="9" style={{textAlign:'center',color:'#94a3b8',padding:'24px'}}>No Bench People found.</td></tr>
                 ) : (
                   benchRows.map((row, idx) => (
                     <tr key={row.vamid || idx}>
                       <td><span className="badge">{row.vamid}</span></td>
                       <td style={{fontWeight:600}}>{row.name}</td>
-                      <td>{row.skill}</td>
-                      <td>{row.grade}</td>
+                      <td><span className="badge">{row.grade || '-'}</span></td>
+                      <td>{row.workspace || '-'}</td>
+                      <td>{row.current_skill || '-'}</td>
+                      <td style={{color:'#64748b',fontSize:'12px'}}>
+                        {[row.secondary_skill, row.third_skill].filter(Boolean).join(', ') || '-'}
+                      </td>
+                      <td>
+                        <span style={{
+                          padding: '2px 8px', borderRadius: '999px', fontWeight: 600, fontSize: '12px',
+                          background: row.bench_days_assigned > 180 ? '#fee2e2' : row.bench_days_assigned > 90 ? '#fef9c3' : '#dcfce7',
+                          color: row.bench_days_assigned > 180 ? '#991b1b' : row.bench_days_assigned > 90 ? '#854d0e' : '#166534'
+                        }}>
+                          {row.bench_days_assigned ?? '-'}
+                        </span>
+                      </td>
+                      <td>{row.vam_exp != null ? Number(row.vam_exp).toFixed(1) : '-'}</td>
+                      <td style={{maxWidth:'200px',fontSize:'12px',color:'#64748b'}}>{row.account_summary || '-'}</td>
                     </tr>
                   ))
                 )}

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, File, UploadFile, Header, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from database import (connect_to_retool,
                       get_candidates_db,
                       get_allocated_resources_db,
@@ -26,6 +26,7 @@ import os
 import json
 from typing import Dict, Any, Optional, List
 import io
+from datetime import datetime, timedelta
 
 # from openai import AzureOpenAI
 
@@ -164,7 +165,140 @@ def call_gemini_api(df1: pd.DataFrame, df2: pd.DataFrame) -> Dict[str, Any]:
             "success": False,
             "error": f"Failed to call Gemini API: {str(e)}"
         }
-    
+
+
+def _prepare_matching_frames(df1: pd.DataFrame, df2: pd.DataFrame):
+    df1 = df1.copy()
+    df2 = df2.copy()
+    if "current_skill" not in df1.columns:
+        df1["current_skill"] = None
+    if "primary_skill" not in df1.columns:
+        df1["primary_skill"] = df1.get("current_skill")
+    for column in ["rrf_id", "pos_title", "role", "account"]:
+        if column not in df2.columns:
+            df2[column] = None
+    return df1, df2
+
+
+def _build_match_download_workbook(matches: List[Dict[str, Any]]) -> io.BytesIO:
+    rows = []
+    for match in matches:
+        rrf = match.get("rrf") or match.get("rrf_details") or {}
+        candidates = match.get("candidates") or match.get("recommended_candidates") or []
+        if not candidates:
+            rows.append({
+                "rrf_id": rrf.get("rrf_id"),
+                "pos_title": rrf.get("pos_title"),
+                "account": rrf.get("account"),
+                "candidate_vamid": None,
+                "candidate_name": None,
+                "match_score": None,
+                "reasoning": None,
+                "skill_alignment": None,
+                "potential_gaps": None,
+            })
+            continue
+
+        for candidate in candidates:
+            employee = candidate.get("employee_details") or {}
+            rows.append({
+                "rrf_id": rrf.get("rrf_id"),
+                "pos_title": rrf.get("pos_title"),
+                "account": rrf.get("account"),
+                "candidate_vamid": candidate.get("vamid"),
+                "candidate_name": employee.get("name") or candidate.get("name"),
+                "match_score": candidate.get("match_score") or candidate.get("score"),
+                "reasoning": candidate.get("reasoning"),
+                "skill_alignment": candidate.get("skill_alignment"),
+                "potential_gaps": ", ".join(candidate.get("potential_gaps", [])) if isinstance(candidate.get("potential_gaps"), list) else candidate.get("potential_gaps"),
+            })
+
+    df = pd.DataFrame(rows)
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Matches")
+    buffer.seek(0)
+    return buffer
+
+
+def _history_rows(limit: int):
+    conn = None
+    cursor = None
+    try:
+        conn = connect_to_retool()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT allocated_date, rrf_id, vamid, name, designation, account, pos_title, role
+            FROM allocation_table
+            ORDER BY allocated_date DESC NULLS LAST
+            LIMIT %s;
+            """,
+            (limit,)
+        )
+        rows = cursor.fetchall()
+        return [
+            {
+                "date": row[0].isoformat() if row[0] else None,
+                "action": f"Allocation completed for RRF {row[1]}",
+                "details": " | ".join(filter(None, [
+                    f"VAM ID: {row[2]}",
+                    f"Name: {row[3]}",
+                    f"Designation: {row[4]}",
+                    f"Account: {row[5]}",
+                    f"Position: {row[6]}",
+                    f"Role: {row[7]}",
+                ]))
+            }
+            for row in rows
+        ]
+    except Exception as e:
+        print(f"Error retrieving upload history: {e}")
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+def _trends_summary(days: int):
+    conn = None
+    cursor = None
+    try:
+        conn = connect_to_retool()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM allocation_table WHERE allocated_date >= %s;", (datetime.now() - timedelta(days=days),))
+        total_matches = cursor.fetchone()[0] or 0
+        cursor.execute("SELECT COUNT(DISTINCT rrf_id) FROM allocation_table WHERE allocated_date >= %s;", (datetime.now() - timedelta(days=days),))
+        unique_rrfs_matched = cursor.fetchone()[0] or 0
+        current = get_dashboard()
+        return {
+            "current": {
+                "rrfCount": current.get("rrf_count", 0),
+                "benchCount": current.get("bench_count", 0),
+            },
+            "matching": {
+                "unique_rrfs_matched": unique_rrfs_matched,
+                "total_matches": total_matches,
+                "avg_match_score": None,
+            },
+            "window_days": days,
+        }
+    except Exception as e:
+        print(f"Error building trends summary: {e}")
+        return {
+            "current": {"rrfCount": 0, "benchCount": 0},
+            "matching": {"unique_rrfs_matched": 0, "total_matches": 0, "avg_match_score": None},
+            "window_days": days,
+            "error": str(e),
+        }
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
 
 @app.post("/admin/migrate")
 def run_migration(x_api_key: Optional[str] = Header(None)):
@@ -239,6 +373,33 @@ def get_trends():
     df_rrf['ageing'] = (now_utc - df_rrf['created_on']).dt.days
     df_rrf_dict = df_rrf.to_dict(orient='records')
     return {"trends": df_rrf_dict}
+
+
+@app.get("/upload-history")
+def get_upload_history(limit: int = 20):
+    history = _history_rows(limit)
+    return {"history": history, "limit": limit}
+
+
+@app.get("/trends/summary")
+def get_trends_summary(days: int = 30):
+    return _trends_summary(days)
+
+
+@app.post("/download-matches")
+def download_matches(payload: dict):
+    matches = payload.get("matches")
+    if not isinstance(matches, list) or not matches:
+        raise HTTPException(status_code=400, detail="'matches' must be a non-empty list")
+
+    buffer = _build_match_download_workbook(matches)
+    filename = f"rrf_matching_results_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+    headers = {"Content-Disposition": f"attachment; filename={filename}"}
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers,
+    )
 
 
 @app.get("/get_allocated_candidates")
@@ -463,6 +624,7 @@ def find_matching_candidates(rrf_details):
         # Create DataFrames
         df1 = pd.DataFrame(bench)
         df2 = pd.DataFrame(rrf_details, index=[0])
+        df1, df2 = _prepare_matching_frames(df1, df2)
 
         # Minimal columns for Gemini
         df1_update = df1[['vamid', 'grade', 'designation', 'current_skill', 'primary_skill']]
@@ -516,6 +678,7 @@ def get_matching_candidates():
         # Create DataFrames
         df1 = pd.DataFrame(bench)
         df2 = pd.DataFrame(rrf)
+        df1, df2 = _prepare_matching_frames(df1, df2)
 
         # Minimal columns for Gemini
         df1_update = df1[['vamid', 'grade', 'designation', 'current_skill', 'primary_skill']]

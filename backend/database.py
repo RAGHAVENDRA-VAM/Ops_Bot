@@ -278,7 +278,7 @@ def get_allocated_resources_db():
         conn = connect_to_retool()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT vamid, name, grade, tsc, workspace, currentskill, secondary_skill,
+            SELECT vamid, name, grade, tsc, workspace, currentskill, primary_skill, secondary_skill,
                    third_skill, vam_exp, total_exp, accountsummary, bench_days_assigned
             FROM bench
             WHERE tsc = 'Platform, App & Infra'
@@ -296,12 +296,13 @@ def get_allocated_resources_db():
                 "tsc":                 r[3],
                 "workspace":           r[4],
                 "current_skill":       r[5],
-                "secondary_skill":     r[6],
-                "third_skill":         r[7],
-                "vam_exp":             r[8],
-                "total_exp":           r[9],
-                "account_summary":     r[10],
-                "bench_days_assigned": r[11],
+                "primary_skill":       r[6],
+                "secondary_skill":     r[7],
+                "third_skill":         r[8],
+                "vam_exp":             r[9],
+                "total_exp":           r[10],
+                "account_summary":     r[11],
+                "bench_days_assigned": r[12],
                 "allocation_status":   "Allocated"
             }
             for r in rows
@@ -319,7 +320,7 @@ def get_candidates_db():
         cursor = conn.cursor()
         # BB = Bench resources: Platform, App & Infra TSC with bench_days_assigned > 0
         cursor.execute("""
-            SELECT vamid, name, grade, tsc, workspace, currentskill, secondary_skill,
+            SELECT vamid, name, grade, tsc, workspace, currentskill, primary_skill, secondary_skill,
                    third_skill, vam_exp, total_exp, accountsummary, bench_days_assigned
             FROM bench
             WHERE tsc = 'Platform, App & Infra'
@@ -336,12 +337,13 @@ def get_candidates_db():
                 "tsc":                 c[3],
                 "workspace":           c[4],
                 "current_skill":       c[5],
-                "secondary_skill":     c[6],
-                "third_skill":         c[7],
-                "vam_exp":             c[8],
-                "total_exp":           c[9],
-                "account_summary":     c[10],
-                "bench_days_assigned": c[11],
+                "primary_skill":       c[6],
+                "secondary_skill":     c[7],
+                "third_skill":         c[8],
+                "vam_exp":             c[9],
+                "total_exp":           c[10],
+                "account_summary":     c[11],
+                "bench_days_assigned": c[12],
                 "allocation_status":   "BB"
             })
         cursor.close()

@@ -16,6 +16,7 @@ const Upload = ({
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [noMatchesHint, setNoMatchesHint] = useState('');
 
   // Fetch RRF IDs for dropdown
   useEffect(() => {
@@ -23,6 +24,7 @@ const Upload = ({
       .then(res => {
         let rrfList = Array.isArray(res.data) ? res.data : (res.data.rrf || []);
         setRrfIdList([...new Set(rrfList.map(r => r.rrf_id).filter(Boolean))]);
+      setNoMatchesHint('');
       })
       .catch(() => setRrfIdList([]))
       .finally(() => setLoading(false));
@@ -34,6 +36,7 @@ const Upload = ({
     setAnalyzing(true);
     setAnalyzeResults([]);
     setError(null);
+    setNoMatchesHint('');
     let allResults = [];
     try {
       for (const rrfId of selectedRrfIds) {
@@ -53,6 +56,7 @@ const Upload = ({
         console.log(`Results for RRF ID ${rrfId}:`, results);
       }
       setAnalyzeResults(allResults);
+      setNoMatchesHint(allResults.length === 0 ? 'No analysis results were returned for the selected RRF IDs.' : '');
       console.log('All analysis results:', allResults);
     } catch (err) {
       const status = err.response?.status;
@@ -71,6 +75,12 @@ const Upload = ({
 
   return (
     <section className="upload-section">
+    {error && !analyzing && analyzeResults.length === 0 && (
+      <div className="empty-state-panel error">
+        <strong>Upload tools need attention.</strong>
+        <span>{error}</span>
+      </div>
+    )}
     <div className="upload-grid">
       <div className="upload-card">
         <h3>RRF File (Open Positions)</h3>
@@ -173,7 +183,8 @@ const Upload = ({
           </button>
         </div>
         {/* Results Table */}
-        {error && <div className="analyze-error">{error}</div>}
+        {error && <div className="empty-state-panel error"><strong>Analysis error.</strong><span>{error}</span></div>}
+        {noMatchesHint && !error && analyzeResults.length === 0 && <div className="empty-state-panel"><strong>{noMatchesHint}</strong><span>Try a different RRF ID or upload a fresher source file.</span></div>}
         {analyzeResults.length > 0 && (
           <div className="analyze-results-table">
             {analyzeResults.map((result, idx) => (
@@ -227,6 +238,11 @@ const Upload = ({
               </div>
             ))}
           </div>
+        ) : (
+          <div className="empty-state-panel">
+            <strong>No RRF IDs available yet.</strong>
+            <span>Upload an RRF file first to analyze and match candidates.</span>
+          </div>
         )}
       </div>
     )}
@@ -266,7 +282,7 @@ const Upload = ({
             {matching ? 'Matching Candidates...' : 'Get Top 5 Candidates per RRF'}
           </button>
         </div>
-        {matches.length > 0 && (
+        {matches.length > 0 ? (
           <div className="matches-container">
             <div className="matches-header">
               <h3>Matching Results</h3>
@@ -312,6 +328,11 @@ const Upload = ({
                 </div>
               </div>
             ))}
+          </div>
+        ) : (
+          <div className="empty-state-panel" style={{ marginTop: '1rem' }}>
+            <strong>No matching results yet.</strong>
+            <span>Upload both files and run matching to see candidate recommendations here.</span>
           </div>
         )}
       </div>

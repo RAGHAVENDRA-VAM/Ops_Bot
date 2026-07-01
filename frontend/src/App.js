@@ -4,7 +4,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import axios from 'axios';
 import './App.css';
 import logo from './assets/ValueMomentum_logo.png';
-import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import {
   MdDashboard, MdPeople, MdUploadFile,
   MdFeedback, MdChevronLeft, MdChevronRight, MdGroups
@@ -22,10 +22,8 @@ import Associates from './pages/Associates';
 
 const API_BASE_URL = API_BASE;
 
-function App() {
-  // Use React Router's location to determine the current route
-  // eslint-disable-next-line no-unused-vars
-  const location = typeof window !== 'undefined' && window.location ? { pathname: window.location.pathname } : { pathname: '/' };
+function AppShell() {
+  const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [rrfCount, setRrfCount] = useState(0);
   const [benchCount, setBenchCount] = useState(0);
@@ -40,6 +38,8 @@ function App() {
   const [useEnhancedMatching, setUseEnhancedMatching] = useState(true);
   const [uploadHistory, setUploadHistory] = useState([]);
   const [trends, setTrends] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [trendsLoading, setTrendsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   // Remove activeSection, use routing instead
   // For Candidates Table
@@ -50,25 +50,26 @@ function App() {
   // Fetch bench candidates, positions, and accounts for Candidates table
   // Fetch bench candidates, positions, and accounts for Candidates table
   useEffect(() => {
-    // Only fetch when on /candidates route
-    if (window.location.pathname === '/candidates') {
-      axios.get(`${API_BASE_URL}/candidates`)
-        .then(res => {
-          setCandidatesTableData(res.data.candidates || []);
-        })
-        .catch(() => setCandidatesTableData([]));
-      axios.get(`${API_BASE_URL}/rrf`)
-        .then(res => {
-          const rrfRows = res.data.rrf || [];
-          setPositions(rrfRows.map(r => r.pos_title).filter(Boolean));
-          setAccounts(Array.from(new Set(rrfRows.map(r => r.account).filter(Boolean))));
-        })
-        .catch(() => {
-          setPositions([]);
-          setAccounts([]);
-        });
+    if (location.pathname !== '/candidates') {
+      return;
     }
-  }, []);
+
+    axios.get(`${API_BASE_URL}/candidates`)
+      .then(res => {
+        setCandidatesTableData(res.data.candidates || []);
+      })
+      .catch(() => setCandidatesTableData([]));
+    axios.get(`${API_BASE_URL}/rrf`)
+      .then(res => {
+        const rrfRows = res.data.rrf || [];
+        setPositions(rrfRows.map(r => r.pos_title).filter(Boolean));
+        setAccounts(Array.from(new Set(rrfRows.map(r => r.account).filter(Boolean))));
+      })
+      .catch(() => {
+        setPositions([]);
+        setAccounts([]);
+      });
+  }, [location.pathname]);
   // Handler for dropdown changes in Candidates table
   const handleCandidateTableChange = (idx, field, value) => {
     setCandidatesTableData(prev => prev.map((row, i) => i === idx ? { ...row, [field]: value } : row));
@@ -209,35 +210,40 @@ function App() {
   };
 
   const fetchUploadHistory = async () => {
+    setHistoryLoading(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/upload-history?limit=20`);
-      setUploadHistory(response.data.history);
+      setUploadHistory(response.data.history || []);
     } catch (err) {
       console.error('Error fetching upload history:', err);
       setError('Failed to load upload history');
+      setUploadHistory([]);
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
   const fetchTrends = async () => {
+    setTrendsLoading(true);
     try {
       const summaryResponse = await axios.get(`${API_BASE_URL}/trends/summary?days=30`);
-      setTrends(summaryResponse.data);
+      setTrends(summaryResponse.data || null);
     } catch (err) {
       console.error('Error fetching trends:', err);
       setError('Failed to load trends');
+      setTrends(null);
+    } finally {
+      setTrendsLoading(false);
     }
   };
 
-  // Fetch data when switching to history or trends sections
-  // Fetch history and trends when those pages are visited
   useEffect(() => {
-    if (window.location.pathname === '/history') {
+    if (location.pathname === '/history') {
       fetchUploadHistory();
-    }
-    if (window.location.pathname === '/trends') {
+    } else if (location.pathname === '/trends') {
       fetchTrends();
     }
-  }, []);
+  }, [location.pathname]);
   
   // Remove hash/activeSection logic
 
@@ -346,7 +352,7 @@ function App() {
   };
 
   useEffect(() => {
-    // Wait for all initial data to load before showing content
+    // Wait for the initial dashboard payload before showing content
     Promise.all([
       axios.get(`${API_BASE_URL}/dashboard`),
       axios.get(`${API_BASE_URL}/candidates`),
@@ -371,7 +377,7 @@ function App() {
   const navClass = ({ isActive }) => `nav-item${isActive ? ' active' : ''}`;
 
   return (
-    <Router>
+    <>
       <div className="app">
         <ToastContainer position="top-right" autoClose={1200} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover />
         <div className={`sidebar${sidebarCollapsed ? ' collapsed' : ''}`}>
@@ -457,7 +463,7 @@ function App() {
               <Route path="/history" element={
                 <>
                   <div className="header"><h1>Upload History</h1></div>
-                  <div style={{padding:'28px 32px'}}><History historyData={uploadHistory} /></div>
+                  <div style={{padding:'28px 32px'}}><History historyData={uploadHistory} loading={historyLoading} /></div>
                 </>
               } />
               <Route path="/trends" element={
@@ -469,7 +475,7 @@ function App() {
                     { label: 'Unique RRFs Matched (30d)', value: trends.matching?.unique_rrfs_matched },
                     { label: 'Total Matches (30d)', value: trends.matching?.total_matches },
                     { label: 'Avg Match Score (30d)', value: trends.matching?.avg_match_score ? Math.round(trends.matching.avg_match_score * 100) / 100 : 'N/A' }
-                  ] : []} /></div>
+                  ] : []} loading={trendsLoading} /></div>
                 </>
               } />
               <Route path="/project-feedback" element={
@@ -483,6 +489,14 @@ function App() {
           </div>
         </div>
       </div>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppShell />
     </Router>
   );
 }

@@ -1,13 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Loader from '../components/Loader';
 
-const History = ({ historyData }) => {
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (historyData) setLoading(false);
-  }, [historyData]);
-
+const History = ({ historyData = [], loading = false }) => {
   if (loading) return <Loader message="Loading history..." />;
 
   return (

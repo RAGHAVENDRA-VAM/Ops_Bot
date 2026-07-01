@@ -1,13 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Loader from '../components/Loader';
 
-const Trends = ({ trendsData }) => {
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (trendsData) setLoading(false);
-  }, [trendsData]);
-
+const Trends = ({ trendsData = [], loading = false }) => {
   if (loading) return <Loader message="Loading trends..." />;
 
   return (

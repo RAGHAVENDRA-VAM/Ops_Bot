@@ -12,24 +12,31 @@ const emptySummary = {
   total_skills: 0
 };
 
+const PAGE_SIZE = 10;
+
 const Associates = () => {
   const fileInputRef = useRef(null);
   const [associates, setAssociates] = useState([]);
   const [summary, setSummary] = useState(emptySummary);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
   const [query, setQuery] = useState('');
   const [accountFilter, setAccountFilter] = useState('');
   const [skillFilter, setSkillFilter] = useState('');
 
   const fetchAssociates = async () => {
+    setLoading(true);
     try {
       const response = await axios.get(`${API_BASE}/associates`);
       setAssociates(response.data.associates || []);
       setSummary(response.data.summary || emptySummary);
+      setError('');
     } catch (error) {
       setAssociates([]);
       setSummary(emptySummary);
+      setError('Unable to load associates right now. Please try again.');
       toast.error('Unable to load associates');
     } finally {
       setLoading(false);
@@ -39,6 +46,10 @@ const Associates = () => {
   useEffect(() => {
     fetchAssociates();
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, accountFilter, skillFilter]);
 
   const accounts = useMemo(
     () => [...new Set(associates.map(item => item.account).filter(Boolean))].sort(),
@@ -69,6 +80,10 @@ const Associates = () => {
     });
   }, [accountFilter, associates, query, skillFilter]);
 
+  const pageCount = Math.max(1, Math.ceil(filteredAssociates.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleAssociates = filteredAssociates.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   const handleUpload = async event => {
     const file = event.target.files[0];
     if (!file) return;
@@ -97,11 +112,17 @@ const Associates = () => {
 
   return (
     <section className="associates-section">
-      <div className="page-toolbar">
+      <div className="table-toolbar">
         <div>
           <h2>Associates Directory</h2>
-          <p>Search, filter, and maintain associates across accounts and skills.</p>
+          <p className="table-toolbar-subtitle">Search, filter, and maintain associates across accounts and skills.</p>
         </div>
+        <div className="table-toolbar-metrics">
+          <span className="mini-metric"><strong>{filteredAssociates.length}</strong> shown</span>
+          <span className="mini-metric"><strong>{summary.total_associates}</strong> total</span>
+        </div>
+      </div>
+      <div className="page-toolbar compact-toolbar">
         <button
           className="compact-upload-btn"
           onClick={() => fileInputRef.current?.click()}
@@ -166,7 +187,10 @@ const Associates = () => {
               {skills.map(skill => <option key={skill} value={skill}>{skill}</option>)}
             </select>
           </div>
+          <button className="btn-secondary" onClick={() => { setQuery(''); setAccountFilter(''); setSkillFilter(''); }}>Clear</button>
         </div>
+
+        {error && <div className="empty-state-panel error"><strong>Couldn't load associates.</strong><span>{error}</span></div>}
 
         <div className="directory-table-wrap">
           <table className="directory-table">
@@ -182,12 +206,12 @@ const Associates = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredAssociates.length === 0 ? (
+              {visibleAssociates.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="empty-state">No associates match the current filters.</td>
                 </tr>
               ) : (
-                filteredAssociates.map((associate, index) => (
+                visibleAssociates.map((associate, index) => (
                   <tr key={associate.vamid || associate.email || index}>
                     <td>
                       <div className="associate-name">{associate.name || '-'}</div>
@@ -204,6 +228,12 @@ const Associates = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="table-pagination">
+          <button className="btn-secondary" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Previous</button>
+          <span>Page {currentPage} of {pageCount}</span>
+          <button className="btn-secondary" onClick={() => setPage(p => Math.min(pageCount, p + 1))} disabled={currentPage === pageCount}>Next</button>
         </div>
       </div>
     </section>
