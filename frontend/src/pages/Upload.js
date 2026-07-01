@@ -158,7 +158,7 @@ const Upload = ({
       </div>
     </div>
     {/* RRF ID Analyze Section: always show if rrfIdList is available */}
-    {rrfIdList.length > 0 && (
+    {rrfIdList.length > 0 ? (
       <div className="analyze-section">
         <h3>Analyze Candidates by RRF ID</h3>
         <div className="analyze-controls">
@@ -189,7 +189,6 @@ const Upload = ({
           <div className="analyze-results-table">
             {analyzeResults.map((result, idx) => (
               <div key={idx} style={{ marginBottom: '2rem', border: '1px solid #e5e7eb', borderRadius: 8, padding: 16 }}>
-                {/* Show RRF Details */}
                 {result.rrf_details && (
                   <div style={{ marginBottom: '1rem' }}>
                     <h4>RRF Details</h4>
@@ -199,7 +198,6 @@ const Upload = ({
                     <div><strong>Role:</strong> {result.rrf_details.role}</div>
                   </div>
                 )}
-                {/* Show POS-ID and Position Name above candidates table */}
                 <div style={{ marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '1.1rem' }}>
                   POS-ID: {result.rrf_details?.rrf_id || (result.results && result.results[0]?.rrf_id) || '-'}
                   {' | '}Position Name: {result.rrf_details?.pos_title || (result.results && result.results[0]?.rrf_details?.pos_title) || '-'}
@@ -238,15 +236,16 @@ const Upload = ({
               </div>
             ))}
           </div>
-        ) : (
-          <div className="empty-state-panel">
-            <strong>No RRF IDs available yet.</strong>
-            <span>Upload an RRF file first to analyze and match candidates.</span>
-          </div>
         )}
+      </div>
+    ) : (
+      <div className="empty-state-panel">
+        <strong>No RRF IDs available yet.</strong>
+        <span>Upload an RRF file first to analyze and match candidates.</span>
       </div>
     )}
     {/* Matching Section in Upload */}
+
     {rrfCount > 0 && benchCount > 0 && (
       <div className="matching-in-upload">
         {/* RRF ID Analyze Section */}
